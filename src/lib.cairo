@@ -1,8 +1,14 @@
 pub mod systems {
-    pub mod actions;
+    pub mod world;
+}
+pub mod interfaces {
+    pub mod IWorld;
 }
 
-pub mod models;
+pub mod model {
+    pub mod game_model;
+    pub mod player_model;
+}
 
 pub mod tests {
     mod test_world;
