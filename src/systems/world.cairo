@@ -119,6 +119,15 @@ pub mod world {
             new_val
         }
 
+        fn get_players_balance(
+            ref self: ContractState, player: ContractAddress, game_id: u256,
+        ) -> u256 {
+            let world = self.world_default();
+
+            let players_balance: GameBalance = world.read_model((player, game_id));
+            players_balance.balance
+        }
+
         fn create_new_game(
             ref self: ContractState,
             game_mode: GameMode,
@@ -423,6 +432,14 @@ pub mod world {
             world.write_model(@property);
 
             true
+        }
+        fn mint(ref self: ContractState, recepient: ContractAddress, game_id: u256, amount: u256) {
+            let mut world = self.world_default();
+
+            let mut receiver: GameBalance = world.read_model((recepient, game_id));
+            let balance = receiver.balance + amount;
+            receiver.balance = balance;
+            world.write_model(@receiver);
         }
     }
 

@@ -42,4 +42,6 @@ pub trait IWorld<T> {
     );
     fn buy_house_or_hotel(ref self: T, property_id: u8, game_id: u256) -> bool;
     fn sell_house_or_hotel(ref self: T, property_id: u8, game_id: u256) -> bool;
+    fn mint(ref self: T, recepient: ContractAddress, game_id: u256, amount: u256);
+    fn get_players_balance(ref self: T, player: ContractAddress, game_id: u256) -> u256;
 }
