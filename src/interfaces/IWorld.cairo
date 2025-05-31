@@ -1,5 +1,6 @@
 use dojo_starter::model::game_model::{GameMode, Game};
 use dojo_starter::model::player_model::{PlayerSymbol, Player};
+use dojo_starter::model::property_model::{Property};
 
 use starknet::{ContractAddress};
 
@@ -14,4 +15,31 @@ pub trait IWorld<T> {
     ) -> u64;
     fn create_new_game_id(ref self: T) -> u64;
     fn retrieve_game(ref self: T, game_id: u64) -> Game;
+    fn generate_properties(
+        ref self: T,
+        id: u8,
+        game_id: u256,
+        name: felt252,
+        cost_of_property: u256,
+        rent_site_only: u256,
+        rent_one_house: u256,
+        rent_two_houses: u256,
+        rent_three_houses: u256,
+        rent_four_houses: u256,
+        cost_of_house: u256,
+        rent_hotel: u256,
+        is_mortgaged: bool,
+        group_id: u8,
+    );
+    fn get_property(ref self: T, id: u8, game_id: u256) -> Property;
+    fn buy_property(ref self: T, property_id: u8, game_id: u256) -> bool;
+    fn sell_property(ref self: T, property_id: u8, game_id: u256) -> bool;
+    fn mortgage_property(ref self: T, property_id: u8, game_id: u256) -> bool;
+    fn unmortgage_property(ref self: T, property_id: u8, game_id: u256) -> bool;
+    fn collect_rent(ref self: T, property_id: u8, game_id: u256) -> bool;
+    fn transfer_from(
+        ref self: T, from: ContractAddress, to: ContractAddress, game_id: u256, amount: u256,
+    );
+    fn buy_house_or_hotel(ref self: T, property_id: u8, game_id: u256) -> bool;
+    fn sell_house_or_hotel(ref self: T, property_id: u8, game_id: u256) -> bool;
 }

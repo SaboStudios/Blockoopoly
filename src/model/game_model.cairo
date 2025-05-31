@@ -10,6 +10,16 @@ pub struct GameCounter {
 }
 
 
+#[derive(Serde, Copy, Drop, Introspect, PartialEq)]
+#[dojo::model]
+pub struct GameBalance {
+    #[key]
+    pub playe_address: ContractAddress,
+    #[key]
+    pub game_id: u256,
+    pub balance: u256,
+}
+
 #[derive(Drop, Serde)]
 #[dojo::model]
 pub struct Game {
