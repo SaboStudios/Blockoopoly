@@ -31,7 +31,7 @@ pub mod world {
     #[dojo::event]
     pub struct GameCreated {
         #[key]
-        pub game_id: u64,
+        pub game_id: u256,
         pub timestamp: u64,
     }
 
@@ -49,7 +49,7 @@ pub mod world {
     #[dojo::event]
     pub struct GameStarted {
         #[key]
-        pub game_id: u64,
+        pub game_id: u256,
         pub timestamp: u64,
     }
 
@@ -57,7 +57,7 @@ pub mod world {
     #[dojo::event]
     pub struct PlayerJoined {
         #[key]
-        pub game_id: u64,
+        pub game_id: u256,
         #[key]
         pub username: felt252,
         pub timestamp: u64,
@@ -110,13 +110,13 @@ pub mod world {
                 );
         }
 
-        fn create_new_game_id(ref self: ContractState) -> u64 {
+        fn create_new_game_id(ref self: ContractState) -> u256 {
             let mut world = self.world_default();
             let mut game_counter: GameCounter = world.read_model('v0');
             let new_val = game_counter.current_val + 1;
             game_counter.current_val = new_val;
             world.write_model(@game_counter);
-            new_val
+            new_val.try_into().unwrap()
         }
 
         fn get_players_balance(
@@ -133,7 +133,7 @@ pub mod world {
             game_mode: GameMode,
             player_symbol: PlayerSymbol,
             number_of_players: u8,
-        ) -> u64 {
+        ) -> u256 {
             // Get default world
             let mut world = self.world_default();
 
@@ -221,7 +221,7 @@ pub mod world {
             player
         }
 
-        fn retrieve_game(ref self: ContractState, game_id: u64) -> Game {
+        fn retrieve_game(ref self: ContractState, game_id: u256) -> Game {
             // Get default world
             let mut world = self.world_default();
             //get the game state
@@ -299,10 +299,10 @@ pub mod world {
             let amount: u256 = property.cost_of_property;
 
             if property.owner == zero_address {
-                self.transfer_from(caller, contract_address, game_id, amount);
+                self.transfer_from(caller, contract_address, game_id.try_into().unwrap(), amount);
             } else {
                 assert(property.for_sale == true, 'Property is not for sale');
-                self.transfer_from(caller, property.owner, game_id, amount);
+                self.transfer_from(caller, property.owner, game_id.try_into().unwrap(), amount);
             }
 
             property.owner = caller;

@@ -24,7 +24,7 @@ pub struct GameBalance {
 #[dojo::model]
 pub struct Game {
     #[key]
-    pub id: u64, // Unique id of the game
+    pub id: u256, // Unique id of the game
     pub created_by: felt252, // Address of the game creator
     pub is_initialised: bool, // Indicate whether game with given Id has been created/initialised
     pub status: GameStatus, // Status of the game
@@ -60,7 +60,7 @@ pub struct Game {
 pub trait GameTrait {
     // Create and return a new game
     fn new(
-        id: u64,
+        id: u256,
         created_by: felt252,
         game_mode: GameMode,
         player_hat: felt252,
@@ -98,7 +98,7 @@ pub enum GameMode {
 
 impl GameImpl of GameTrait {
     fn new(
-        id: u64,
+        id: u256,
         created_by: felt252,
         game_mode: GameMode,
         player_hat: felt252,

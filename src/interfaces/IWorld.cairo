@@ -12,9 +12,9 @@ pub trait IWorld<T> {
     fn retrieve_player(ref self: T, addr: ContractAddress) -> Player;
     fn create_new_game(
         ref self: T, game_mode: GameMode, player_symbol: PlayerSymbol, number_of_players: u8,
-    ) -> u64;
-    fn create_new_game_id(ref self: T) -> u64;
-    fn retrieve_game(ref self: T, game_id: u64) -> Game;
+    ) -> u256;
+    fn create_new_game_id(ref self: T) -> u256;
+    fn retrieve_game(ref self: T, game_id: u256) -> Game;
     fn generate_properties(
         ref self: T,
         id: u8,
