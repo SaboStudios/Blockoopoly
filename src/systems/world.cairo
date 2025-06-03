@@ -73,7 +73,13 @@ pub mod world {
 
             address_map.username
         }
-        fn register_new_player(ref self: ContractState, username: felt252, is_bot: bool) {
+        fn register_new_player(
+            ref self: ContractState,
+            username: felt252,
+            is_bot: bool,
+            player_symbol: PlayerSymbol,
+            initial_balance: u256,
+        ) {
             assert(!is_bot, 'Bot detected');
             let mut world = self.world_default();
 
@@ -93,7 +99,9 @@ pub mod world {
 
             assert(existing_username == 0, 'USERNAME ALREADY CREATED');
 
-            let new_player: Player = PlayerTrait::new(username, caller, is_bot);
+            let new_player: Player = PlayerTrait::new(
+                username, caller, is_bot, player_symbol, initial_balance,
+            );
             let username_to_address: UsernameToAddress = UsernameToAddress {
                 username, address: caller,
             };

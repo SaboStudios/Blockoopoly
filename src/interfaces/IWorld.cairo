@@ -7,7 +7,13 @@ use starknet::{ContractAddress};
 // define the interface
 #[starknet::interface]
 pub trait IWorld<T> {
-    fn register_new_player(ref self: T, username: felt252, is_bot: bool);
+    fn register_new_player(
+        ref self: T,
+        username: felt252,
+        is_bot: bool,
+        player_symbol: PlayerSymbol,
+        initial_balance: u256,
+    );
     fn get_username_from_address(self: @T, address: ContractAddress) -> felt252;
     fn retrieve_player(ref self: T, addr: ContractAddress) -> Player;
     fn create_new_game(
