@@ -72,7 +72,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         let player: Player = actions_system.retrieve_player(caller_1);
         println!("username: {}", player.username);
@@ -94,10 +94,10 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_2);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
     }
 
     #[test]
@@ -115,10 +115,10 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username1, false);
+        actions_system.register_new_player(username1, false, PlayerSymbol::Car, 100);
     }
     #[test]
     #[should_panic]
@@ -135,10 +135,10 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username1, false);
+        actions_system.register_new_player(username1, false, PlayerSymbol::Car, 100);
     }
 
     #[test]
@@ -155,7 +155,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, true);
+        actions_system.register_new_player(username, true, PlayerSymbol::Car, 100);
     }
 
     #[test]
@@ -171,7 +171,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -197,7 +197,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let _game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -264,7 +264,7 @@ mod tests {
         assert(property.id == 1, 'wrong id');
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id: u256 = actions_system
@@ -296,7 +296,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -322,7 +322,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -357,7 +357,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -390,7 +390,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -422,7 +422,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -459,7 +459,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -489,7 +489,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -520,7 +520,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -552,7 +552,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -585,7 +585,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -617,7 +617,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -652,7 +652,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);
@@ -685,7 +685,7 @@ mod tests {
         let actions_system = IWorldDispatcher { contract_address };
 
         testing::set_contract_address(caller_1);
-        actions_system.register_new_player(username, false);
+        actions_system.register_new_player(username, false, PlayerSymbol::Dog, 100);
 
         testing::set_contract_address(caller_1);
         let game_id = actions_system.create_new_game(GameMode::MultiPlayer, PlayerSymbol::Hat, 4);

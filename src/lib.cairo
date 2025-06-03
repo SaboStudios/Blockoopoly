@@ -13,4 +13,5 @@ pub mod model {
 
 pub mod tests {
     mod test_world;
+    mod test_player_model;
 }
