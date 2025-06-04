@@ -50,4 +50,37 @@ pub trait IWorld<T> {
     fn sell_house_or_hotel(ref self: T, property_id: u8, game_id: u256) -> bool;
     fn mint(ref self: T, recepient: ContractAddress, game_id: u256, amount: u256);
     fn get_players_balance(ref self: T, player: ContractAddress, game_id: u256) -> u256;
+    
+    fn get_properties_owned_by_player(
+        ref self: T, player: ContractAddress, game_id: u256,
+    ) -> Array<u8>;
+    fn get_properties_by_group(
+        ref self: T, group_id: u8, game_id: u256,
+    ) -> Array<u8>;
+    fn has_monopoly(
+        ref self: T, 
+        player: ContractAddress, 
+        group_id: u8, 
+        game_id: u256,
+    ) -> bool;
+    fn collect_rent_with_monopoly(
+        ref self: T, 
+        property_id: u8, 
+        game_id: u256,
+    ) -> bool;
+    fn get_property_value(
+        ref self: T, 
+        property_id: u8, 
+        game_id: u256,
+    ) -> u256;
+    fn can_develop_property(
+        ref self: T,
+        property_id: u8,
+        game_id: u256,
+    ) -> bool;
+    fn batch_generate_properties(
+        ref self: T,
+        game_id: u256,
+        properties: Array<(u8, felt252, u256, u256, u256, u256, u256, u256, u256, u256, u8)>,
+    );
 }
