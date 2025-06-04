@@ -306,6 +306,17 @@ pub mod world {
 
             self.transfer_from(caller, property.owner, game_id, rent_amount);
 
+            // Emit RentCollected event
+            world.emit_event(@RentCollected {
+                game_id,
+                property_id,
+                from_player: caller,
+                to_player: property.owner,
+                amount: rent_amount,
+                development_level: property.development,
+                timestamp: get_block_timestamp(),
+            });
+
             true
         }
 
@@ -335,6 +346,46 @@ pub mod world {
             }
         }
 
+        fn can_develop_evenly(
+            ref self: ContractState,
+            property_id: u8,
+            group_id: u8,
+            game_id: u256,
+            is_building: bool, // true for building, false for selling
+        ) -> bool {
+            let world = self.world_default();
+            let current_property: Property = world.read_model((property_id, game_id));
+            let group_properties = self.get_properties_by_group(group_id, game_id);
+            
+            let mut i = 0;
+            loop {
+                if i >= group_properties.len() {
+                    break true;
+                }
+                
+                let other_property_id = *group_properties.at(i);
+                if other_property_id != property_id {
+                    let other_property: Property = world.read_model((other_property_id, game_id));
+                    
+                    if is_building {
+                        // When building: current property cannot have more houses than any other property in the group
+                        // after building (current_development + 1)
+                        if current_property.development >= other_property.development {
+                            break false;
+                        }
+                    } else {
+                        // When selling: current property cannot have fewer houses than any other property in the group
+                        // after selling (current_development - 1)
+                        if current_property.development <= other_property.development {
+                            break false;
+                        }
+                    }
+                }
+                
+                i += 1;
+            }
+        }
+
         fn can_develop_property(
             ref self: ContractState,
             property_id: u8,
@@ -356,10 +407,28 @@ pub mod world {
                 return false;
             }
 
-            // TODO: Implement even development rule
             // (must build evenly across all properties in group)
-            
-            true
+            self.can_develop_evenly(property_id, property.group_id, game_id, true)
+        }
+
+        fn can_sell_development(
+            ref self: ContractState,
+            property_id: u8,
+            game_id: u256,
+        ) -> bool {
+            let world = self.world_default();
+            let property: Property = world.read_model((property_id, game_id));
+            let caller = get_caller_address();
+
+            // Check basic requirements
+            if property.owner != caller || 
+               property.development == 0 {
+                return false;
+            }
+
+            // Check even development rule for selling
+            // (must sell evenly across all properties in group)
+            self.can_develop_evenly(property_id, property.group_id, game_id, false)
         }
 
         fn batch_generate_properties(
@@ -580,6 +649,8 @@ pub mod world {
             } else { 
                 property.owner 
             };
+            
+            // Emit PropertyPurchased event
             world.emit_event(@PropertyPurchased {
                 game_id,
                 property_id,
@@ -607,6 +678,15 @@ pub mod world {
             property.is_mortgaged = true;
             world.write_model(@property);
 
+            // Emit PropertyMortgaged event
+            world.emit_event(@PropertyMortgaged {
+                game_id,
+                property_id,
+                owner: caller,
+                amount_received: amount,
+                timestamp: get_block_timestamp(),
+            });
+
             true
         }
 
@@ -626,6 +706,15 @@ pub mod world {
 
             property.is_mortgaged = false;
             world.write_model(@property);
+
+            // Emit PropertyUnmortgaged event
+            world.emit_event(@PropertyUnmortgaged {
+                game_id,
+                property_id,
+                owner: caller,
+                amount_paid: repay_amount,
+                timestamp: get_block_timestamp(),
+            });
 
             true
         }
@@ -651,6 +740,17 @@ pub mod world {
             };
 
             self.transfer_from(caller, property.owner, game_id, rent_amount);
+
+            // Emit RentCollected event
+            world.emit_event(@RentCollected {
+                game_id,
+                property_id,
+                from_player: caller,
+                to_player: property.owner,
+                amount: rent_amount,
+                development_level: property.development,
+                timestamp: get_block_timestamp(),
+            });
 
             true
         }
@@ -680,9 +780,7 @@ pub mod world {
             let mut property: Property = world.read_model((property_id, game_id));
             let contract_address = get_contract_address();
 
-            assert(property.owner == caller, 'Only the owner ');
-            assert(property.is_mortgaged == false, 'Cannot develop');
-            assert(property.development < 5, 'Maximum development ');
+            assert(self.can_develop_property(property_id, game_id), 'Cannot develop property');
 
             let cost: u256 = property.cost_of_house;
             self.transfer_from(caller, contract_address, game_id, cost);
@@ -690,6 +788,16 @@ pub mod world {
             property.development += 1; // Increases to 5 (hotel) max
 
             world.write_model(@property);
+
+            // Emit PropertyDeveloped event
+            world.emit_event(@PropertyDeveloped {
+                game_id,
+                property_id,
+                owner: caller,
+                development_level: property.development,
+                cost,
+                timestamp: get_block_timestamp(),
+            });
 
             true
         }
@@ -700,8 +808,7 @@ pub mod world {
             let mut property: Property = world.read_model((property_id, game_id));
             let contract_address = get_contract_address();
 
-            assert(property.owner == caller, 'Only the owner ');
-            assert(property.development > 0, 'No houses to sell');
+            assert(self.can_sell_development(property_id, game_id), 'Cannot sell development');
 
             let refund: u256 = property.cost_of_house / 2;
 
@@ -711,8 +818,19 @@ pub mod world {
 
             world.write_model(@property);
 
+            // Emit PropertyDeveloped event (development level decreased)
+            world.emit_event(@PropertyDeveloped {
+                game_id,
+                property_id,
+                owner: caller,
+                development_level: property.development,
+                cost: refund, // negative cost (refund)
+                timestamp: get_block_timestamp(),
+            });
+
             true
         }
+
         fn mint(ref self: ContractState, recepient: ContractAddress, game_id: u256, amount: u256) {
             let mut world = self.world_default();
 
