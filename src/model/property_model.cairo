@@ -6,10 +6,12 @@ pub struct Property {
     #[key]
     pub id: u8,
     #[key]
-    game_id: u256,
+    pub game_id: u256,
     pub name: felt252,
     pub owner: ContractAddress,
+    pub property_type: PropertyType,
     pub cost_of_property: u256,
+    pub property_level: u8,
     pub rent_site_only: u256,
     pub rent_one_house: u256,
     pub rent_two_houses: u256,
@@ -22,6 +24,20 @@ pub struct Property {
     pub for_sale: bool,
     pub development: u8,
 }
+#[derive(Serde, Copy, Drop, Introspect, PartialEq, Debug)]
+pub enum PropertyType {
+    Go,
+    Chance,
+    CommunityChest,
+    Jail,
+    Utility,
+    RailRoad,
+    Tax,
+    FreeParking,
+    Property,
+    VisitingJail,
+}
+
 
 #[derive(Drop, Copy, Serde)]
 #[dojo::model]
@@ -45,6 +61,7 @@ pub trait PropertyTrait {
         game_id: u256,
         name: felt252,
         cost: u256,
+        property_type: PropertyType,
         rent_site_only: u256,
         rent_one_house: u256,
         rent_two_houses: u256,
@@ -53,12 +70,22 @@ pub trait PropertyTrait {
         cost_of_house: u256,
         rent_hotel: u256,
         group_id: u8,
+        owner: ContractAddress,
     ) -> Property;
-    fn set_owner(property: Property, new_owner: ContractAddress);
-    fn get_rent_amount(property: Property, houses: u8, hotel: bool) -> u256;
-    fn mortgage(property: Property);
-    fn lift_mortgage(property: Property);
+    fn get_rent_amount(
+        self: @Property, owner_railroads: u8, owner_utilities: u8, dice_rolled: u256,
+    ) -> u256;
+    fn calculate_utility_rent(self: @Property, no_of_utilities: u8, dice_rolled: u256) -> u256;
+    fn calculate_railway_rent(self: @Property, no_of_railways: u8) -> u256;
+    fn mortgage(ref self: Property, owner: ContractAddress);
+    fn lift_mortgage(ref self: Property, owner: ContractAddress);
+    fn upgrade_property(ref self: Property, player: ContractAddress, upgrade_level: u8) -> bool;
+    fn downgrade_property(ref self: Property, player: ContractAddress, downgrade_level: u8) -> bool;
+    fn change_game_property_ownership(
+        ref self: Property, new_owner: ContractAddress, owner: ContractAddress,
+    ) -> bool;
 }
+
 
 impl PropertyImpl of PropertyTrait {
     fn new(
@@ -66,6 +93,7 @@ impl PropertyImpl of PropertyTrait {
         game_id: u256,
         name: felt252,
         cost: u256,
+        property_type: PropertyType,
         rent_site_only: u256,
         rent_one_house: u256,
         rent_two_houses: u256,
@@ -74,14 +102,16 @@ impl PropertyImpl of PropertyTrait {
         cost_of_house: u256,
         rent_hotel: u256,
         group_id: u8,
+        owner: ContractAddress,
     ) -> Property {
-        let zero_address: ContractAddress = contract_address_const::<0>();
         Property {
             id,
             game_id,
             name,
-            owner: zero_address,
+            owner: owner,
+            property_type,
             cost_of_property: cost,
+            property_level: 0,
             rent_site_only: rent_site_only,
             rent_one_house: rent_one_house,
             rent_two_houses: rent_two_houses,
@@ -95,34 +125,92 @@ impl PropertyImpl of PropertyTrait {
             development: 0,
         }
     }
-
-
-    fn set_owner(mut property: Property, new_owner: ContractAddress) {
-        property.owner = new_owner;
-    }
-
-    fn get_rent_amount(mut property: Property, houses: u8, hotel: bool) -> u256 {
-        if property.is_mortgaged {
+    fn get_rent_amount(
+        self: @Property, owner_railroads: u8, owner_utilities: u8, dice_rolled: u256,
+    ) -> u256 {
+        if *self.is_mortgaged {
             return 0;
         }
-        if hotel {
-            return property.rent_hotel;
-        }
-        match houses {
-            0 => property.rent_site_only,
-            1 => property.rent_one_house,
-            2 => property.rent_two_houses,
-            3 => property.rent_three_houses,
-            4 => property.rent_four_houses,
-            _ => property.rent_site_only // default fallback
+
+        match *self.property_type {
+            PropertyType::Property => {
+                match *self.development {
+                    0 => *self.rent_site_only,
+                    1 => *self.rent_one_house,
+                    2 => *self.rent_two_houses,
+                    3 => *self.rent_three_houses,
+                    4 => *self.rent_four_houses,
+                    5 => *self.rent_hotel,
+                    _ => *self.rent_site_only,
+                }
+            },
+            PropertyType::RailRoad => {
+                match owner_railroads {
+                    0 => 0,
+                    1 => 25,
+                    2 => 50,
+                    3 => 100,
+                    4 => 200,
+                    _ => 0,
+                }
+            },
+            PropertyType::Utility => {
+                match owner_utilities {
+                    0 => 0,
+                    1 => 4 * dice_rolled,
+                    2 => 10 * dice_rolled,
+                    _ => 0,
+                }
+            },
+            _ => 0,
         }
     }
 
-    fn mortgage(mut property: Property) {
-        property.is_mortgaged = true;
+
+    fn calculate_utility_rent(self: @Property, no_of_utilities: u8, dice_rolled: u256) -> u256 {
+        match no_of_utilities {
+            0 => 0,
+            1 => 4 * dice_rolled,
+            2 => 10 * dice_rolled,
+            _ => 0,
+        }
+    }
+    fn calculate_railway_rent(self: @Property, no_of_railways: u8) -> u256 {
+        match no_of_railways {
+            0 => 0,
+            1 => 25,
+            2 => 50,
+            3 => 100,
+            4 => 200,
+            _ => 0,
+        }
     }
 
-    fn lift_mortgage(mut property: Property) {
-        property.is_mortgaged = false;
+
+    fn mortgage(ref self: Property, owner: ContractAddress) {
+        self.is_mortgaged = true;
+    }
+
+    fn lift_mortgage(ref self: Property, owner: ContractAddress) {
+        self.is_mortgaged = false;
+    }
+
+    fn upgrade_property(ref self: Property, player: ContractAddress, upgrade_level: u8) -> bool {
+        // deals with the property level mostly after many checks
+        true
+    }
+
+    fn downgrade_property(
+        ref self: Property, player: ContractAddress, downgrade_level: u8,
+    ) -> bool {
+        // deals with the property level mostly after many checks
+        true
+    }
+
+    fn change_game_property_ownership(
+        ref self: Property, new_owner: ContractAddress, owner: ContractAddress,
+    ) -> bool {
+        // deals with the field owner after many checks
+        true
     }
 }

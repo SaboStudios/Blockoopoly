@@ -1,4 +1,5 @@
 use starknet::{ContractAddress, contract_address_const};
+use dojo_starter::model::game_player_model::{GamePlayer, PlayerSymbol, GamePlayerTrait};
 // Keeps track of the state of the game
 
 #[derive(Serde, Copy, Drop, Introspect, PartialEq)]
@@ -6,9 +7,8 @@ use starknet::{ContractAddress, contract_address_const};
 pub struct GameCounter {
     #[key]
     pub id: felt252,
-    pub current_val: u64,
+    pub current_val: u256,
 }
-
 
 #[derive(Serde, Copy, Drop, Introspect, PartialEq)]
 #[dojo::model]
@@ -20,7 +20,8 @@ pub struct GameBalance {
     pub balance: u256,
 }
 
-#[derive(Drop, Serde)]
+
+#[derive(Drop, Clone, Serde)]
 #[dojo::model]
 pub struct Game {
     #[key]
@@ -28,10 +29,10 @@ pub struct Game {
     pub created_by: felt252, // Address of the game creator
     pub is_initialised: bool, // Indicate whether game with given Id has been created/initialised
     pub status: GameStatus, // Status of the game
-    pub mode: GameMode, // Mode of the game
+    pub mode: GameType, // Mode of the game
     pub ready_to_start: bool, // Indicate whether game can be started
     pub winner: felt252, // First winner position 
-    pub next_player: felt252, // Address of the player to make the next move
+    pub next_player: ContractAddress, // Address of the player to make the next move
     pub number_of_players: u8, // Number of players in the game
     pub rolls_count: u256, //  Sum of all the numbers rolled by the dice
     pub rolls_times: u256, // Total number of times the dice has been rolled
@@ -55,6 +56,10 @@ pub struct Game {
     pub player_battleship: felt252, // item use address on the board
     pub player_boot: felt252, // item use address on the board
     pub player_wheelbarrow: felt252,
+    pub players_joined: u8,
+    pub game_players: Array<ContractAddress>,
+    pub chance: Array<ByteArray>,
+    pub community: Array<ByteArray>,
 }
 
 pub trait GameTrait {
@@ -62,7 +67,7 @@ pub trait GameTrait {
     fn new(
         id: u256,
         created_by: felt252,
-        game_mode: GameMode,
+        game_type: GameType,
         player_hat: felt252,
         player_car: felt252,
         player_dog: felt252,
@@ -72,6 +77,9 @@ pub trait GameTrait {
         player_boot: felt252,
         player_wheelbarrow: felt252,
         number_of_players: u8,
+        game_players: Array<ContractAddress>,
+        chance: Array<ByteArray>,
+        community: Array<ByteArray>,
     ) -> Game;
     fn restart(ref self: Game);
     fn terminate_game(ref self: Game);
@@ -90,9 +98,9 @@ pub enum GameStatus {
 // Represents the game mode
 // Can either be SinglePlayer or Multiplayer
 #[derive(Serde, Copy, Drop, Introspect, PartialEq)]
-pub enum GameMode {
-    SinglePlayer, // Play with computer
-    MultiPlayer // Play online with friends
+pub enum GameType {
+    PublicGame, // Play with computer
+    PrivateGame // Play online with friends
 }
 
 
@@ -100,7 +108,7 @@ impl GameImpl of GameTrait {
     fn new(
         id: u256,
         created_by: felt252,
-        game_mode: GameMode,
+        game_type: GameType,
         player_hat: felt252,
         player_car: felt252,
         player_dog: felt252,
@@ -110,6 +118,9 @@ impl GameImpl of GameTrait {
         player_boot: felt252,
         player_wheelbarrow: felt252,
         number_of_players: u8,
+        game_players: Array<ContractAddress>,
+        chance: Array<ByteArray>,
+        community: Array<ByteArray>,
     ) -> Game {
         let zero_address = contract_address_const::<0x0>();
         Game {
@@ -117,7 +128,7 @@ impl GameImpl of GameTrait {
             created_by,
             is_initialised: true,
             status: GameStatus::Pending,
-            mode: game_mode,
+            mode: game_type,
             ready_to_start: false,
             player_hat,
             player_car,
@@ -161,6 +172,10 @@ impl GameImpl of GameTrait {
             battleship: 'battleship',
             boot: 'boot',
             wheelbarrow: 'wheelbarrow',
+            players_joined: 0,
+            game_players,
+            chance,
+            community,
         }
     }
 
@@ -177,6 +192,18 @@ impl GameImpl of GameTrait {
 
     fn terminate_game(ref self: Game) {
         self.status = GameStatus::Ended;
+    }
+}
+
+
+#[generate_trait]
+pub impl GameBalanceImpl of IGameBalance {
+    fn deduct_game_balance(ref self: GameBalance, amount: u256) -> bool {
+        true
+    }
+
+    fn increase_game_balance(ref self: GameBalance, amount: u256) -> bool {
+        true
     }
 }
 
