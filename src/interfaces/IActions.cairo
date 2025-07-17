@@ -45,6 +45,11 @@ pub trait IActions<T> {
     fn use_getout_of_jail_chance(ref self: T, game_id: u256) -> bool;
     fn use_getout_of_jail_community_chest(ref self: T, game_id: u256) -> bool;
 
+    fn calculate_net_worth(ref self: T, player: GamePlayer) -> u256;
+
+    fn get_winner_by_net_worth(ref self: T, players: Array<GamePlayer>) -> ContractAddress;
+    fn end_game(ref self: T, game: Game) -> ContractAddress;
+
     fn offer_trade(
         ref self: T,
         game_id: u256,
@@ -77,17 +82,7 @@ pub trait IActions<T> {
     fn roll_dice(ref self: T) -> (u8, u8);
     fn move_player(ref self: T, game_id: u256, steps: u8) -> u8;
     fn pay_jail_fine(ref self: T, game_id: u256) -> bool;
-    // fn handle_chance(ref self: T, game_id: u256, random_index: u32) -> @ByteArray;
 
-    // Handling landings on board
-    // fn draw_chance_card(ref self: T, game_id: u256) -> Chance;
-    // fn draw_community_chest_card(ref self: T, game_id: u256) -> CommunityChest;
-    // fn pay_tax(ref self: T, game_id: u256, tax_id: u8) -> bool;
-    // fn go_to_jail(ref self: T, game_id: u256) -> bool;
-
-    // Jail specific actions
-    // fn pay_jail_fee(ref self: T, game_id: u256) -> bool;
-    // fn use_jail_card(ref self: T, game_id: u256) -> bool;
 
     // Property transactions
     fn buy_property(ref self: T, property: Property) -> bool;
@@ -107,18 +102,6 @@ pub trait IActions<T> {
     fn process_community_chest_card(
         ref self: T, game: Game, player: GamePlayer, card: ByteArray,
     ) -> (Game, GamePlayer);
-    // Trading system
-    // fn offer_trade(
-    //     ref self: T,
-    //     game_id: u256,
-    //     to: ContractAddress,
-    //     offered_property_ids: Array<u8>,
-    //     requested_property_ids: Array<u8>,
-    //     cash_offer: u256,
-    //     cash_request: u256
-    // );
-    // fn accept_trade(ref self: T, game_id: u256, trade_id: u256) -> bool;
-    // fn decline_trade(ref self: T, game_id: u256, trade_id: u256) -> bool;
 
     // // Auctions
     // fn start_auction(ref self: T, property_id: u8, game_id: u256);
@@ -132,6 +115,5 @@ pub trait IActions<T> {
     fn mint(ref self: T, recepient: ContractAddress, game_id: u256, amount: u256);
     // Bankruptcy & ending game
 // fn declare_bankruptcy(ref self: T, game_id: u256) -> bool;
-// fn check_winner(self: @T, game_id: u256) -> Option<ContractAddress>;
-// fn end_game(ref self: T, game_id: u256) -> bool;
+
 }
