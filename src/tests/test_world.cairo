@@ -25,6 +25,8 @@ mod tests {
 
     use dojo_starter::model::property_model::{
         Property, m_Property, IdToProperty, m_IdToProperty, PropertyToId, m_PropertyToId,
+        TradeCounter, m_TradeCounter, TradeOfferDetails, m_TradeOfferDetails, TradeOffer,
+        TradeStatus,
     };
     use dojo_starter::model::utility_model::{
         Utility, m_Utility, IdToUtility, m_IdToUtility, UtilityToId, m_UtilityToId,
@@ -65,6 +67,8 @@ mod tests {
                 TestResource::Model(m_Go::TEST_CLASS_HASH),
                 TestResource::Model(m_Tax::TEST_CLASS_HASH),
                 TestResource::Model(m_GamePlayer::TEST_CLASS_HASH),
+                TestResource::Model(m_TradeCounter::TEST_CLASS_HASH),
+                TestResource::Model(m_TradeOfferDetails::TEST_CLASS_HASH),
                 TestResource::Event(actions::e_PlayerCreated::TEST_CLASS_HASH),
                 TestResource::Event(actions::e_GameCreated::TEST_CLASS_HASH),
                 TestResource::Event(actions::e_PlayerJoined::TEST_CLASS_HASH),
@@ -2158,6 +2162,1496 @@ mod tests {
 
         assert(ply.position == 2, 'position error');
         assert(ply.balance == 1450, 'bal error');
+    }
+
+    #[test]
+    fn test_process_community_chest_individually() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 2);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 2);
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let mut community_chest: ByteArray = "Advance to Go (Collect $200)";
+
+        let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        assert(ply.position == 0, 'position error');
+        assert(ply.balance == 1700, 'bal error');
+
+        g = actions_system.finish_turn(g);
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 2);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        community_chest = "Bank error in your favor - Collect $200";
+
+        let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        g = actions_system.finish_turn(g);
+
+        assert(ply.position == 2, 'position error');
+        assert(ply.balance == 1700, 'bal error');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 2);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        community_chest = "Bank error in your favor - Collect $200";
+
+        let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 2, 'position error');
+        assert(ply.balance == 1900, 'bal error');
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 15);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        community_chest = "Doctor fee - Pay $50";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 17, 'position error');
+        assert(ply.balance == 1650, 'bal error');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 15);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        community_chest = "From sale of stock - collect $50";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 17, 'position error');
+        assert(ply.balance == 1950, 'bal error');
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 16);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        community_chest = "Get Out of Jail Free";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 33, 'position error');
+        assert(ply.balance == 1650, 'bal error');
+        assert(ply.comm_free_card, 'jail card error');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 16);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        community_chest = "Grand Opera Night - collect $50 from every player";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 33, 'position error');
+        assert(ply.balance == 2000, 'bal error');
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 9);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        community_chest = "Go to Jail";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 10, 'position error');
+        assert(ply.balance == 1800, 'bal error');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 9);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        community_chest = "Holiday Fund matures - Receive $100";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 2, 'position error');
+        assert(ply.balance == 2300, 'bal error');
+
+        testing::set_contract_address(caller_2);
+        actions_system.use_getout_of_jail_community_chest(1);
+        actions_system.move_player(1, 7);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        community_chest = "Income tax refund - Collect $20";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 17, 'position error');
+        assert(ply.balance == 1820, 'bal error');
+
+        // // // HERE
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 15);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        community_chest = "Life insurance matures - Collect $100";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 17, 'position error');
+        assert(ply.balance == 2400, 'bal error');
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 16);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        community_chest = "Pay hospital fees of $100";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 33, 'position error');
+        assert(ply.balance == 1720, 'bal error');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 16);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        community_chest = "Pay school fees of $150";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 33, 'position error');
+        assert(ply.balance == 2250, 'bal error');
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 9);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        community_chest = "Street repairs - $40 per house, $115 per hotel";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 2, 'position error');
+        assert(ply.balance == 1920, 'bal error');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 9);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        community_chest = "Won second prize in beauty contest - Collect $10";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 2, 'position error');
+        assert(ply.balance == 2460, 'bal error');
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 15);
+
+        let g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        community_chest = "You inherit $100";
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        actions_system.finish_turn(g);
+
+        assert(ply.position == 17, 'position error');
+        assert(ply.balance == 2020, 'bal error');
+    }
+
+    #[test]
+    fn test_going_jail_and_using_community_and_chance_cards() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 2);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 2);
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let mut community_chest: ByteArray = "Get Out of Jail Free";
+
+        let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 7);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        let chance = "Get out of Jail Free";
+
+        let (_, ply1) = actions_system.process_chance_card(g.clone(), p, chance);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 5);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let chance = "Go to Jail";
+
+        let (_, ply) = actions_system.process_chance_card(g.clone(), p, chance);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 10);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        let chance = "Go to Jail";
+
+        let (game, ply1) = actions_system.process_community_chest_card(g.clone(), p, chance);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        actions_system.use_getout_of_jail_community_chest(game.id);
+        actions_system.move_player(1, 5);
+        g = actions_system.finish_turn(g);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        testing::set_contract_address(caller_2);
+        actions_system.use_getout_of_jail_chance(game.id);
+        actions_system.move_player(1, 10);
+        g = actions_system.finish_turn(g);
+
+        g = actions_system.retrieve_game(1);
+        let pl = actions_system.retrieve_game_player(caller_2, 1);
+
+        assert!(p.jail_turns == 0, "p jail_turns not zero");
+        assert!(!p.jailed, "p still jailed");
+        assert!(!p.chance_jail_card, "p still has chance card");
+        assert!(!p.comm_free_card, "p still has community card");
+
+        assert!(pl.jail_turns == 0, "pl jail_turns not zero");
+        assert!(!pl.jailed, "pl still jailed");
+        assert!(!pl.chance_jail_card, "pl still has chance card");
+        assert!(!pl.comm_free_card, "pl still has community card");
+    }
+
+    #[test]
+    fn test_going_to_jail_pay_fine_and_miss_3_turns() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 2);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 2);
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let mut community_chest: ByteArray = "Get Out of Jail Free";
+
+        let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 7);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        let chance = "Get out of Jail Free";
+
+        let (_, ply1) = actions_system.process_chance_card(g.clone(), p, chance);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 5);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let chance = "Go to Jail";
+
+        let (_, ply) = actions_system.process_chance_card(g.clone(), p, chance);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 10);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        let chance = "Go to Jail";
+
+        let (game, ply1) = actions_system.process_community_chest_card(g.clone(), p, chance);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        actions_system.pay_jail_fine(game.id);
+        actions_system.move_player(1, 5);
+        g = actions_system.finish_turn(g);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+        assert!(p.jail_turns == 0, "p jail_turns not zero");
+        assert!(!p.jailed, "p still jailed");
+        assert!(p.balance == 1450, "pl balance error");
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 10);
+        g = actions_system.finish_turn(g);
+
+        g = actions_system.retrieve_game(1);
+        let pl = actions_system.retrieve_game_player(caller_2, 1);
+
+        testing::set_contract_address(caller_1);
+
+        actions_system.move_player(1, 5);
+        g = actions_system.finish_turn(g);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_1, 1);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 10);
+        g = actions_system.finish_turn(g);
+
+        g = actions_system.retrieve_game(1);
+        let pl = actions_system.retrieve_game_player(caller_2, 1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 10);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+
+        actions_system.move_player(1, 5);
+        g = actions_system.finish_turn(g);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 10);
+        g = actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+
+        actions_system.move_player(1, 5);
+        g = actions_system.finish_turn(g);
+
+        g = actions_system.retrieve_game(1);
+        p = actions_system.retrieve_game_player(caller_2, 1);
+
+        g = actions_system.retrieve_game(1);
+        let pl = actions_system.retrieve_game_player(caller_2, 1);
+
+        assert!(pl.jail_turns == 0, "pl.jail_turns not zero");
+        assert!(pl.balance == 1500, "pl.balance not 1500");
+        assert!(!pl.jailed, "pl is still jailed");
+        assert!(pl.chance_jail_card, "pl does not have chance jail card");
+        assert!(!pl.comm_free_card, "pl still has community jail card");
+        assert!(pl.position == 15, "pl.position not 15");
+    }
+
+    #[test]
+    fn test_offer_trade_property_for_cash() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 5);
+        let ppt = actions_system.get_property(5, 1);
+
+        let buyppt = actions_system.buy_property(ppt);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 1);
+        let mut property = actions_system.get_property(1, 1);
+
+        actions_system.buy_property(property);
+
+        assert(buyppt, 'Buy property failed');
+
+        testing::set_contract_address(caller_1);
+        // let ppt = actions_system.get_property(5, 1);
+
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(5);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_2,
+                offered_property_ids,
+                requested_property_ids,
+                0,
+                250,
+                TradeOffer::PropertyForCash,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        //  requested_property_ids, cash_offer, cash_request, trade_type );
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        actions_system.move_player(1, 5);
+        let ppt = actions_system.get_property(5, 1);
+
+        let pptfelt: felt252 = ppt.owner.into();
+
+        assert(ppt.owner == caller_2, 'property tf failed');
+        assert(aji.balance == 1550, 'debit failed');
+        assert(aji.properties_owned.len() == 0, 'aji .len failed');
+        assert(*collins.properties_owned[1] == ppt.id, 'ownership transfer failed');
+        assert(aji.no_section1 == 0, 'Section update');
+        assert(collins.no_section1 == 1, 'Section update');
+    }
+
+    #[test]
+    fn test_offer_trade_property_for_property() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 6);
+        let ppt = actions_system.get_property(6, 1);
+
+        let buyppt = actions_system.buy_property(ppt);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 1);
+        let mut property = actions_system.get_property(1, 1);
+
+        actions_system.buy_property(property);
+
+        assert(buyppt, 'Buy property failed');
+
+        testing::set_contract_address(caller_1);
+        // let ppt = actions_system.get_property(5, 1);
+
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_2,
+                offered_property_ids,
+                requested_property_ids,
+                0,
+                0,
+                TradeOffer::PropertyForProperty,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        //  requested_property_ids, cash_offer, cash_request, trade_type );
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        actions_system.move_player(1, 5);
+        let ppt = actions_system.get_property(6, 1);
+        let ppp = actions_system.get_property(1, 1);
+
+        let ppt_felt: felt252 = ppt.owner.into();
+        let ppp_felt: felt252 = ppp.owner.into();
+
+        println!("ppt_felt : {}", ppt_felt);
+        println!("ppp_felt : {}", ppp_felt);
+
+        assert(ppt.owner == caller_2, 'trade failed');
+        assert(ppp.owner == caller_1, 'trade failed');
+        assert(aji.no_section1 == 1, 'Section update');
+        assert(collins.no_section1 == 0, 'Section update');
+        assert(aji.no_section2 == 0, 'Section update');
+        assert(collins.no_section2 == 1, 'Section update');
+    }
+
+    #[test]
+    fn test_offer_trade_cash_for_property() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 6);
+        let ppt = actions_system.get_property(6, 1);
+
+        let buyppt = actions_system.buy_property(ppt);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 1);
+        let mut property = actions_system.get_property(1, 1);
+
+        actions_system.buy_property(property);
+
+        assert(buyppt, 'Buy property failed');
+
+        testing::set_contract_address(caller_1);
+        // let ppt = actions_system.get_property(5, 1);
+
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_2,
+                offered_property_ids,
+                requested_property_ids,
+                250,
+                0,
+                TradeOffer::CashForProperty,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        //  requested_property_ids, cash_offer, cash_request, trade_type );
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        actions_system.move_player(1, 5);
+        let ppt = actions_system.get_property(6, 1);
+        let ppp = actions_system.get_property(1, 1);
+
+        let ppt_felt: felt252 = ppt.owner.into();
+        let ppp_felt: felt252 = ppp.owner.into();
+
+        println!("aji balance : {} ", aji.balance);
+        println!("collins balance : {} ", collins.balance);
+
+        assert(ppt.owner == caller_1, 'trade failed');
+        assert(ppp.owner == caller_1, 'trade failed');
+        assert(aji.no_section1 == 1, 'Section update');
+        assert(collins.no_section1 == 0, 'Section update');
+        assert(aji.no_section2 == 1, 'Section update');
+        assert(collins.no_section2 == 0, 'Section update');
+    }
+    #[test]
+    // fn test_offer_trade_property_for_cash_and_property() {
+    fn test_offer_cash_plus_property_for_property() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 6);
+        let ppt = actions_system.get_property(6, 1);
+
+        let buyppt = actions_system.buy_property(ppt);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 1);
+        let mut property = actions_system.get_property(1, 1);
+
+        actions_system.buy_property(property);
+
+        assert(buyppt, 'Buy property failed');
+
+        testing::set_contract_address(caller_1);
+        // let ppt = actions_system.get_property(5, 1);
+
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_2,
+                offered_property_ids,
+                requested_property_ids,
+                250,
+                0,
+                TradeOffer::CashPlusPropertyForProperty,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        //  requested_property_ids, cash_offer, cash_request, trade_type );
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        actions_system.move_player(1, 5);
+        let ppt = actions_system.get_property(6, 1);
+        let ppp = actions_system.get_property(1, 1);
+
+        let ppt_felt: felt252 = ppt.owner.into();
+        let ppp_felt: felt252 = ppp.owner.into();
+
+        println!("ppt_felt : {}", ppt_felt);
+        println!("ppp_felt : {}", ppp_felt);
+        println!("aji balance : {} ", aji.balance);
+        println!("collins balance : {} ", collins.balance);
+
+        assert(ppt.owner == caller_2, 'trade failed');
+        assert(ppp.owner == caller_1, 'trade failed');
+        assert(aji.no_section1 == 1, 'Section update');
+        assert(collins.no_section1 == 0, 'Section update');
+        assert(aji.no_section2 == 0, 'Section update');
+        assert(collins.no_section2 == 1, 'Section update');
+    }
+    #[test]
+    fn test_offer_trade_property_for_cash_and_property() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 6);
+        let ppt = actions_system.get_property(6, 1);
+
+        let buyppt = actions_system.buy_property(ppt);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 1);
+        let mut property = actions_system.get_property(1, 1);
+
+        actions_system.buy_property(property);
+
+        assert(buyppt, 'Buy property failed');
+
+        testing::set_contract_address(caller_1);
+        // let ppt = actions_system.get_property(5, 1);
+
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_2,
+                offered_property_ids,
+                requested_property_ids,
+                0,
+                250,
+                TradeOffer::PropertyForCashPlusProperty,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        //  requested_property_ids, cash_offer, cash_request, trade_type );
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        actions_system.move_player(1, 5);
+        let ppt = actions_system.get_property(6, 1);
+        let ppp = actions_system.get_property(1, 1);
+
+        let ppt_felt: felt252 = ppt.owner.into();
+        let ppp_felt: felt252 = ppp.owner.into();
+
+        println!("ppt_felt : {}", ppt_felt);
+        println!("ppp_felt : {}", ppp_felt);
+        println!("aji balance : {} ", aji.balance);
+        println!("collins balance : {} ", collins.balance);
+
+        assert(ppt.owner == caller_2, 'trade failed');
+        assert(ppp.owner == caller_1, 'trade failed');
+        assert(aji.no_section1 == 1, 'Section update');
+        assert(collins.no_section1 == 0, 'Section update');
+        assert(aji.no_section2 == 0, 'Section update');
+        assert(collins.no_section2 == 1, 'Section update');
+    }
+
+    #[test]
+    fn test_offer_trade_cash_for_chaance_jail_card() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 7);
+        let chance = "Get out of Jail Free";
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let (g, ply) = actions_system.process_chance_card(g.clone(), p, chance);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 1);
+        let mut property = actions_system.get_property(1, 1);
+        actions_system.buy_property(property);
+
+        testing::set_contract_address(caller_1);
+        let mut ga = actions_system.retrieve_game(1);
+        actions_system.move_player(1, 1);
+        actions_system.finish_turn(ga);
+
+        testing::set_contract_address(caller_2);
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_1,
+                offered_property_ids,
+                requested_property_ids,
+                50,
+                0,
+                TradeOffer::CashForChanceJailCard,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        actions_system.move_player(1, 5);
+
+        println!("aji balance : {} ", aji.balance);
+        println!("collins balance : {} ", collins.balance);
+
+        assert(!aji.chance_jail_card, 'Section update');
+        assert(collins.chance_jail_card, 'Section update');
+    }
+
+    #[test]
+    fn test_offer_trade_chance_jail_card_for_cash() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 7);
+        let chance = "Get out of Jail Free";
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let (g, ply) = actions_system.process_chance_card(g.clone(), p, chance);
+        actions_system.finish_turn(g.clone());
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_2,
+                offered_property_ids,
+                requested_property_ids,
+                0,
+                50,
+                TradeOffer::ChanceJailCardForCash,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        actions_system.move_player(1, 5);
+
+        println!("aji balance : {} ", aji.balance);
+        println!("collins balance : {} ", collins.balance);
+
+        assert(!aji.chance_jail_card, 'Section update');
+        assert(collins.chance_jail_card, 'Section update');
+    }
+
+    #[test]
+    fn test_offer_trade_cash_for_community_jail_card() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 2);
+        let chance = "Get Out of Jail Free";
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, chance);
+        actions_system.finish_turn(g);
+
+        p = actions_system.retrieve_game_player(caller_1, 1);
+        assert!(p.comm_free_card, "p does not have community jail card");
+
+        testing::set_contract_address(caller_2);
+        actions_system.move_player(1, 1);
+        let mut property = actions_system.get_property(1, 1);
+        actions_system.buy_property(property);
+
+        testing::set_contract_address(caller_1);
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_2,
+                offered_property_ids,
+                requested_property_ids,
+                0,
+                50,
+                TradeOffer::CashForCommunityJailCard,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 2);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_2);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        actions_system.move_player(1, 5);
+
+        println!("aji balance : {} ", aji.balance);
+        println!("collins balance : {} ", collins.balance);
+
+        assert(!aji.comm_free_card, 'Section update');
+        assert(collins.comm_free_card, 'Section update');
+    }
+
+    #[test]
+    fn test_offer_trade_community_jail_card_for_cash() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 2);
+        let chance = "Get Out of Jail Free";
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, chance);
+        actions_system.finish_turn(g);
+
+        p = actions_system.retrieve_game_player(caller_1, 1);
+        assert!(p.comm_free_card, "p does not have community jail card");
+
+        testing::set_contract_address(caller_2);
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_1,
+                offered_property_ids,
+                requested_property_ids,
+                50,
+                0,
+                TradeOffer::CommunityJailCardForCash,
+            );
+
+        println!("trade id : {} ", trade_id);
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+
+        assert(!aji.comm_free_card, 'Section update');
+        assert(collins.comm_free_card, 'Section update');
+    }
+
+    #[test]
+    fn test_offer_test_counter_trade() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 2);
+        let chance = "Get Out of Jail Free";
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, chance);
+        actions_system.finish_turn(g);
+
+        p = actions_system.retrieve_game_player(caller_1, 1);
+        assert!(p.comm_free_card, "p does not have community jail card");
+
+        testing::set_contract_address(caller_2);
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_1,
+                offered_property_ids.clone(),
+                requested_property_ids.clone(),
+                50,
+                0,
+                TradeOffer::ChanceJailCardForCash,
+            );
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        actions_system
+            .counter_trade(
+                1,
+                1,
+                offered_property_ids,
+                requested_property_ids.clone(),
+                50,
+                0,
+                TradeOffer::CommunityJailCardForCash,
+            );
+
+        testing::set_contract_address(caller_2);
+        testing::set_contract_address(caller_2);
+        actions_system.approve_counter_trade(1);
+
+        testing::set_contract_address(caller_1);
+        let s = actions_system.accept_trade(1, 1);
+        assert(s, 'accept failed');
+
+        let aji = actions_system.retrieve_game_player(caller_1, 1);
+        let mut collins = actions_system.retrieve_game_player(caller_2, 1);
+        assert(!aji.comm_free_card, 'Section update');
+        assert(collins.comm_free_card, 'Section update');
+    }
+
+    #[test]
+    fn test_offer_test_reject_trade() {
+        let caller_1 = contract_address_const::<'aji'>();
+        let caller_2 = contract_address_const::<'collins'>();
+        let username = 'Ajidokwu';
+        let username_1 = 'Collins';
+
+        let ndef = namespace_def();
+        let mut world = spawn_test_world([ndef].span());
+        world.sync_perms_and_inits(contract_defs());
+
+        let (contract_address, _) = world.dns(@"actions").unwrap();
+        let actions_system = IActionsDispatcher { contract_address };
+
+        testing::set_contract_address(caller_2);
+        actions_system.register_new_player(username_1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.register_new_player(username);
+
+        testing::set_contract_address(caller_1);
+        actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+
+        testing::set_contract_address(caller_2);
+        actions_system.join_game(PlayerSymbol::Dog, 1);
+
+        testing::set_contract_address(caller_1);
+        let started = actions_system.start_game(1);
+        assert(started, 'Game start fail');
+
+        let game_p = actions_system.retrieve_game(1);
+
+        testing::set_contract_address(caller_1);
+        actions_system.move_player(1, 2);
+        let chance = "Get Out of Jail Free";
+
+        let mut g = actions_system.retrieve_game(1);
+        let mut p = actions_system.retrieve_game_player(caller_1, 1);
+
+        let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, chance);
+        actions_system.finish_turn(g);
+
+        p = actions_system.retrieve_game_player(caller_1, 1);
+        assert!(p.comm_free_card, "p does not have community jail card");
+
+        testing::set_contract_address(caller_2);
+        let mut offered_property_ids: Array<u8> = array![];
+        let mut requested_property_ids: Array<u8> = array![];
+        offered_property_ids.append(6);
+        requested_property_ids.append(1);
+        let mut trade_id = actions_system
+            .offer_trade(
+                1,
+                caller_1,
+                offered_property_ids.clone(),
+                requested_property_ids.clone(),
+                50,
+                0,
+                TradeOffer::ChanceJailCardForCash,
+            );
+
+        actions_system.move_player(1, 5);
+        let g = actions_system.retrieve_game(1);
+        actions_system.finish_turn(g);
+
+        testing::set_contract_address(caller_1);
+        actions_system.reject_trade(trade_id, 1);
+
+        let trade = actions_system.get_trade(trade_id);
+        assert(trade.status == TradeStatus::Rejected, 'Trade not rejected');
     }
 }
 
